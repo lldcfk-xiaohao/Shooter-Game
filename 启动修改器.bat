@@ -1,0 +1,3 @@
+@echo off
+echo 启动游戏修改器...
+start "" "C:\Python311\pythonw.exe" "%~dp0cheat_tool.py"
