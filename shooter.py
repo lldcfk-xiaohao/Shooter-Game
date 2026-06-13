@@ -4,6 +4,12 @@ TopDown Shooter v4 - with Boss System
 """
 import pygame, math, random, sys, array, struct, json, os, hashlib
 
+def get_app_dir():
+    """获取 exe 或脚本所在目录（兼容 PyInstaller 打包）"""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
 try:
     import ctypes
     if sys.platform == "win32":
@@ -102,7 +108,7 @@ def scale_mouse(mx, my, screen, surf):
     return mx * surf.get_width() / sw, my * surf.get_height() / sh
 
 # === Account System ===
-USER_FILE = "users.json"
+USER_FILE = os.path.join(get_app_dir(), "users.json")
 
 def load_users():
     if not os.path.exists(USER_FILE):
@@ -677,7 +683,7 @@ def draw_gameover(surf,bigfont,font,sfont,score,lv_num):
     surf.blit(t4,(W//2-t4.get_width()//2,H//2+29))
 
 # === Cheat config ===
-CHEAT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cheat_cfg.json")
+CHEAT_FILE = os.path.join(get_app_dir(), "cheat_cfg.json")
 cheat_last_v = -1
 def read_cheat():
     try:

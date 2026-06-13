@@ -18,8 +18,14 @@ import tkinter as tk
 from tkinter import ttk
 import json, time, threading
 
+def get_app_dir():
+    """获取 exe 或脚本所在目录（兼容 PyInstaller 打包）"""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
 # -- 共享配置文件路径 --
-CFG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cheat_cfg.json")
+CFG_FILE = os.path.join(get_app_dir(), "cheat_cfg.json")
 
 # -- 登录凭证 --
 LOGIN_USER = "ADMIN"
