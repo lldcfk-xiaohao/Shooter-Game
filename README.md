@@ -19,12 +19,6 @@ A top-down shooter game built with Python & Pygame, featuring multiple game mode
 - **800x600 Windowed** — lightweight and runs on any machine
 - **Standalone EXE**: Pre-built executables included in `/dist`
 
-## Screenshots
-
-> Add your screenshots here! Place images in a `screenshots/` folder and reference them:
->
-> `![Gameplay](screenshots/gameplay.png)`
-
 ## Quick Start
 
 ### Prerequisites
@@ -36,8 +30,8 @@ A top-down shooter game built with Python & Pygame, featuring multiple game mode
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
-cd YOUR_REPO
+git clone https://github.com/lldcfk-xiaohao/Shooter-Game.git
+cd Shooter-Game
 
 # Install dependencies
 pip install pygame
