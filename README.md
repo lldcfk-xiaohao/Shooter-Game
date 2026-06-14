@@ -102,7 +102,7 @@ A standalone Tkinter application that communicates with the game via `cheat_cfg.
 | Kill All Enemies              | :white_check_mark: | :x: |
 | Full Restore (HP + Ammo)      | :white_check_mark: | :x: |
 
-**Login credentials for full mode**: Username `ADMIN`, Password `3kau`
+Full mode requires login credentials (contact the developer).
 
 ### Usage
 
