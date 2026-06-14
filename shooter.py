@@ -627,26 +627,27 @@ def draw_hud(surf, font, sfont, bigfont, player, lv_num, kills, kt, fps, boss, m
     if player.reloading:
         rl=sfont.render("P1 RELOADING...",True,(80,180,255))
         surf.blit(rl,(W//2-rl.get_width()//2,36))
-    # P2 信息（COOP模式）
+    # P2 信息（COOP模式）— 放在右下角区域避免重叠
     if player2 is not None:
-        # P2 血量（右侧）
+        p2_y = H - 52  # 底部对齐
+        # P2 血量（右侧底部）
         for i in range(player2.hp_max):
             c = C_HP_FG if i<player2.hp else C_HP_BG
-            pygame.draw.circle(surf, c, (W-24-i*26, 20), 8)
+            pygame.draw.circle(surf, c, (W-24-i*26, p2_y), 8)
         p2_tag = sfont.render("P2", True, C_PLAYER2)
-        surf.blit(p2_tag, (W-20-p2_tag.get_width(), 36))
+        surf.blit(p2_tag, (W-20-p2_tag.get_width(), p2_y+16))
         # P2 弹药
         ac2 = C_WARN if player2.ammo==0 else (C_ACCENT if player2.ammo<=4 else C_TEXT)
         a2 = sfont.render(str(player2.ammo)+"/"+str(player2.mag_size), True, ac2)
-        surf.blit(a2, (W-30-a2.get_width(), 36))
+        surf.blit(a2, (W-30-a2.get_width(), p2_y+16))
         r2 = sfont.render("RES "+str(player2.reserve), True, C_TEXT_D)
-        surf.blit(r2, (W-30-r2.get_width(), 52))
+        surf.blit(r2, (W-30-r2.get_width(), p2_y+32))
         if player2.reloading:
             rl2 = sfont.render("P2 RELOADING...", True, (80,180,255))
-            surf.blit(rl2, (W//2-rl2.get_width()//2, 50))
+            surf.blit(rl2, (W//2-rl2.get_width()//2, H-30))
         elif player2.ammo==0 and player2.reserve>0:
             h2=sfont.render("P2 [RCTRL] RELOAD",True,C_WARN)
-            surf.blit(h2,(W//2-h2.get_width()//2,50))
+            surf.blit(h2,(W//2-h2.get_width()//2,H-30))
     if boss and boss.alive:
         wt = font.render("!! BOSS !!", True, C_WARN)
         surf.blit(wt, (W//2-wt.get_width()//2, 22))
