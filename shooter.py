@@ -1,5 +1,5 @@
 """
-TopDown Shooter v4 - with Boss System
+TopDown Shooter v6 - with Boss System + COOP Mode
 操作：WASD移动 鼠标瞄准 左键射击 M换弹 ESC暂停
 """
 import pygame, math, random, sys, array, struct, json, os, hashlib

@@ -20,6 +20,15 @@ A top-down shooter game built with Python & Pygame, featuring multiple game mode
 - **800x600 Windowed** — lightweight and runs on any machine
 - **Standalone EXE**: Pre-built executables included in `/dist`
 
+## Download
+
+Get the latest standalone EXEs from the [Releases](https://github.com/lldcfk-xiaohao/Shooter-Game/releases) page.
+
+- **v1.1.0** (Latest): COOP mode + v6 game engine
+- **v1.0.0**: Initial release
+
+> Both EXEs must be kept in the same folder. No Python installation required.
+
 ## Quick Start
 
 ### Prerequisites
