@@ -1,4 +1,4 @@
-# TopDown Shooter v5
+# TopDown Shooter v1
 
 A top-down shooter game built with Python & Pygame, featuring multiple game modes, boss fights, an account system, and a companion cheat tool.
 
