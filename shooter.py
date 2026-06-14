@@ -654,6 +654,7 @@ def draw_hud(surf, font, sfont, bigfont, player, lv_num, kills, kt, fps, boss, m
     fl=[]
     if getattr(player,"invincible",False): fl.append("INV")
     if getattr(player,"inf_ammo",False):   fl.append("INF")
+    if cheat_p1_autoaim[0]:               fl.append("AIM")
     if g_shoot_cd != 160:               fl.append("CD:"+str(g_shoot_cd))
     if g_bullet_r != 4:                fl.append("BR:"+str(g_bullet_r))
     if g_bullet_dmg != 1:              fl.append("DMG:"+str(g_bullet_dmg))
@@ -1001,6 +1002,7 @@ def game(start_level=0, mode="NORMAL"):
     cheat_kill_all = [False]
     cheat_restore  = [False]
     cheat_teleport = [False]
+    cheat_p1_autoaim = [False]   # P1 自瞄开关
     def apply_cheat(p, p2=None):
         nonlocal fc
         fc[0]+=1
@@ -1011,11 +1013,16 @@ def game(start_level=0, mode="NORMAL"):
         v=cfg.get("_version",0)
         if v==cheat_last_v: return
         cheat_last_v=v
-        p.invincible=bool(cfg.get("invincible",False))
-        p.inf_ammo=bool(cfg.get("inf_ammo",False))
-        if p2:
+        target = cfg.get("target", "ALL")  # ALL / P1 / P2
+        p1_apply = (target in ("ALL", "P1"))
+        p2_apply = (target in ("ALL", "P2"))
+        if p1_apply:
+            p.invincible=bool(cfg.get("invincible",False))
+            p.inf_ammo=bool(cfg.get("inf_ammo",False))
+        if p2 and p2_apply:
             p2.invincible=bool(cfg.get("invincible",False))
             p2.inf_ammo=bool(cfg.get("inf_ammo",False))
+        cheat_p1_autoaim[0] = bool(cfg.get("p1_autoaim", False))
         g_shoot_cd=max(0,int(cfg.get("shoot_cd",160)))
         g_bullet_r=max(1,int(cfg.get("bullet_r",4)))
         g_bullet_dmg=max(1,int(cfg.get("bullet_dmg",1)))
@@ -1025,10 +1032,11 @@ def game(start_level=0, mode="NORMAL"):
         if cfg.get("apply",False):
             nh=max(1,int(cfg.get("hp",p.hp))); nhm=max(1,int(cfg.get("hp_max",p.hp_max)))
             nm=max(1,int(cfg.get("mag_size",p.mag_size)))
-            p.hp=min(nh,nhm); p.hp_max=nhm
-            if nm!=p.mag_size: p.set_mag(nm); p.ammo=min(p.ammo,nm)
-            if p.inf_ammo: p.ammo=p.mag_size
-            if p2:
+            if p1_apply:
+                p.hp=min(nh,nhm); p.hp_max=nhm
+                if nm!=p.mag_size: p.set_mag(nm); p.ammo=min(p.ammo,nm)
+                if p.inf_ammo: p.ammo=p.mag_size
+            if p2 and p2_apply:
                 p2.hp=min(nh,nhm); p2.hp_max=nhm
                 if nm!=p2.mag_size: p2.set_mag(nm); p2.ammo=min(p2.ammo,nm)
                 if p2.inf_ammo: p2.ammo=p2.mag_size
@@ -1036,11 +1044,11 @@ def game(start_level=0, mode="NORMAL"):
             cheat_kill_all[0] = bool(cfg.get("kill_all",False))
             cheat_restore[0]  = bool(cfg.get("full_restore",False))
             if cheat_restore[0]:
-                p.hp=p.hp_max; p.ammo=p.mag_size; p.reserve=p.mag_size*5
-                if p2: p2.hp=p2.hp_max; p2.ammo=p2.mag_size; p2.reserve=p2.mag_size*5
+                if p1_apply: p.hp=p.hp_max; p.ammo=p.mag_size; p.reserve=p.mag_size*5
+                if p2 and p2_apply: p2.hp=p2.hp_max; p2.ammo=p2.mag_size; p2.reserve=p2.mag_size*5
             if cheat_teleport[0]:
-                p.x=W//2; p.y=H//2
-                if p2: p2.x=W//2+40; p2.y=H//2
+                if p1_apply: p.x=W//2; p.y=H//2
+                if p2 and p2_apply: p2.x=W//2+40; p2.y=H//2
             write_cheat(cfg)
     def make_level_endless(lv_idx):
         """无尽模式：超过10关后动态生成越来越难的关卡"""
@@ -1212,7 +1220,18 @@ def game(start_level=0, mode="NORMAL"):
             for e in enemies: e.alive=False; kills+=1
         # --- 更新玩家 ---
         if player.alive:
-            player.update(held1,mx,my,now,covers,snd)
+            # P1 自瞄：当修改器开启时自动瞄准最近敌人
+            if cheat_p1_autoaim[0]:
+                p1_aim_x, p1_aim_y = player.x + 100, player.y
+                alive_enemies = [e for e in enemies if e.alive]
+                if alive_enemies:
+                    nearest_e = min(alive_enemies, key=lambda e: dist((player.x,player.y),(e.x,e.y)))
+                    p1_aim_x, p1_aim_y = nearest_e.x, nearest_e.y
+                elif boss and boss.alive and not boss.entering:
+                    p1_aim_x, p1_aim_y = boss.x, boss.y
+                player.update(held1, p1_aim_x, p1_aim_y, now, covers, snd)
+            else:
+                player.update(held1,mx,my,now,covers,snd)
         # P2 自动瞄准最近的敌人
         if player2 and player2.alive:
             aim_x, aim_y = player2.x + 100, player2.y  # 默认朝右

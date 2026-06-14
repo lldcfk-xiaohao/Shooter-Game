@@ -1,8 +1,8 @@
 """
-TopDown Shooter -- 游戏修改器 v3.1
+TopDown Shooter -- 游戏修改器 v4.0
 使用方法：先启动游戏 shooter.py，再启动本修改器
 通信方式：通过同目录 cheat_cfg.json 与游戏实时交换数据
-新增：尝鲜模式（无需登录，功能有限）
+新增：尝鲜模式 + P1/P2单独修改 + P1自瞄
 """
 # -- 隐藏 Windows 控制台窗口 --
 import sys, os
@@ -44,10 +44,12 @@ DEFAULTS = {
     "reload_ms":        1400,
     "invincible":       False,
     "inf_ammo":         False,
+    "p1_autoaim":       False,
     "teleport_center":  False,
     "kill_all":         False,
     "full_restore":     False,
     "apply":            False,
+    "target":           "ALL",
     "_version":         0
 }
 
@@ -215,15 +217,15 @@ class CheatTool:
         self.root = root
         self.trial_mode = trial_mode
         if trial_mode:
-            root.title("TopDown Shooter Cheat v3.1 -- 尝鲜模式")
+            root.title("TopDown Shooter Cheat v4.0 -- 尝鲜模式")
         else:
-            root.title("TopDown Shooter Cheat v3.1")
+            root.title("TopDown Shooter Cheat v4.0")
         root.resizable(False, True)
         root.configure(bg=self.BG)
         if trial_mode:
-            root.geometry("400x520")
+            root.geometry("400x560")
         else:
-            root.geometry("400x820")
+            root.geometry("400x900")
 
         self.cfg = read_cfg()
         self._build_ui()
@@ -326,6 +328,22 @@ class CheatTool:
                                    font=("Consolas", 9))
         self.status_lbl.pack(anchor="w", pady=(0, 6))
 
+        # == 目标选择 ==
+        self._section(main, "◆ 修改目标")
+        target_row = tk.Frame(main, bg=self.BG)
+        target_row.pack(fill="x", pady=3)
+        self.target_var = tk.StringVar(value="ALL")
+        for label, val in [("全部", "ALL"), ("仅P1", "P1"), ("仅P2", "P2")]:
+            tk.Radiobutton(target_row, text=label, variable=self.target_var, value=val,
+                           bg=self.BG, fg=self.CYAN, selectcolor=self.BG2,
+                           activebackground=self.BG, activeforeground=self.CYAN,
+                           font=("Consolas", 9)).pack(side="left", padx=6)
+
+        self.p1_autoaim_var = tk.BooleanVar(value=self.cfg.get("p1_autoaim", False))
+        self._check(main, "🎯  P1 自瞄（自动瞄准最近敌人）", self.p1_autoaim_var, self.PURPLE)
+
+        self._sep(main)
+
         # == 玩家移动速度 ==
         self._section(main, "◆ 玩家移动速度")
         row1 = tk.Frame(main, bg=self.BG)
@@ -407,7 +425,7 @@ class CheatTool:
         # -- 标题栏 --
         title_bar = tk.Frame(root, bg=self.BG3, height=44)
         title_bar.pack(fill="x")
-        tk.Label(title_bar, text="  ⚡ Shooter 修改器 v3.1",
+        tk.Label(title_bar, text="  ⚡ Shooter 修改器 v4.0",
                  bg=self.BG3, fg=self.ACCENT,
                  font=("Consolas", 13, "bold")).pack(side="left", pady=8)
         tk.Label(title_bar, text="  ✔ 已验证  ",
@@ -439,6 +457,22 @@ class CheatTool:
                                    bg=self.BG, fg=self.TEXT_DIM,
                                    font=("Consolas", 9))
         self.status_lbl.pack(anchor="w", pady=(0, 6))
+
+        # == 修改目标 ==
+        self._section(main, "◆ 修改目标（P1/P2 分别修改）")
+        target_row = tk.Frame(main, bg=self.BG)
+        target_row.pack(fill="x", pady=3)
+        self.target_var = tk.StringVar(value="ALL")
+        for label, val, color in [("全部", "ALL", self.TEXT), ("仅P1", "P1", self.GREEN), ("仅P2", "P2", self.CYAN)]:
+            tk.Radiobutton(target_row, text=label, variable=self.target_var, value=val,
+                           bg=self.BG, fg=color, selectcolor=self.BG2,
+                           activebackground=self.BG, activeforeground=color,
+                           font=("Consolas", 10, "bold")).pack(side="left", padx=8)
+
+        self.p1_autoaim_var = tk.BooleanVar(value=self.cfg.get("p1_autoaim", False))
+        self._check(main, "🎯  P1 自瞄（自动瞄准最近敌人）", self.p1_autoaim_var, self.PURPLE)
+
+        self._sep(main)
 
         # == 血量设置 ==
         self._section(main, "◆ 血量设置")
@@ -622,9 +656,11 @@ class CheatTool:
                 "reload_ms":       DEFAULTS["reload_ms"],
                 "invincible":      False,
                 "inf_ammo":        self.inf_ammo_var.get(),
+                "p1_autoaim":      self.p1_autoaim_var.get(),
                 "teleport_center": False,
                 "kill_all":        False,
                 "full_restore":    False,
+                "target":          self.target_var.get(),
                 "apply":           True,
                 "_version":        self.cfg.get("_version", 0)
             }
@@ -641,9 +677,11 @@ class CheatTool:
                 "reload_ms":       self.rl_var.get(),
                 "invincible":      self.inv_var.get(),
                 "inf_ammo":        self.inf_ammo_var.get(),
+                "p1_autoaim":      self.p1_autoaim_var.get(),
                 "teleport_center": self.teleport_var.get(),
                 "kill_all":        self.kill_all_var.get(),
                 "full_restore":    self.restore_var.get(),
+                "target":          self.target_var.get(),
                 "apply":           True,
                 "_version":        self.cfg.get("_version", 0)
             }
@@ -667,6 +705,8 @@ class CheatTool:
         self.bspd_var.set(9.5);   self.pspd_var.set(3.5)
         self.rl_var.set(1400)
         self.inv_var.set(False);  self.inf_ammo_var.set(False)
+        self.p1_autoaim_var.set(False)
+        self.target_var.set("ALL")
         self.teleport_var.set(False)
         self.kill_all_var.set(False)
         self.restore_var.set(False)
