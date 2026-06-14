@@ -1,6 +1,6 @@
-# TopDown Shooter v1
+# TopDown Shooter
 
-A top-down shooter game built with Python & Pygame, featuring multiple game modes, boss fights, an account system, and a companion cheat tool.
+A top-down shooter game built with Python & Pygame, featuring multiple game modes (including 2-player co-op!), boss fights, an account system, and a companion cheat tool.
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![Pygame](https://img.shields.io/badge/Pygame-2.x-green)
@@ -10,7 +10,8 @@ A top-down shooter game built with Python & Pygame, featuring multiple game mode
 
 - **10 Levels** with increasing difficulty — survive waves of enemies across varied maps
 - **2 Boss Fights** (Level 5 & Level 10) with multiple attack patterns
-- **4 Game Modes**: Normal, Hard, Endless, Speedrun
+- **5 Game Modes**: Normal, Hard, Endless, Speedrun, **Co-op**
+- **2-Player Co-op**: Play with a friend on the same keyboard!
 - **Cover System**: Hide behind obstacles for tactical advantage
 - **Account System**: Register / Login to track progress; offline mode available
 - **Companion Cheat Tool**: Real-time parameter tweaking via shared JSON config
@@ -59,22 +60,46 @@ Or use the included batch files (Windows):
 
 ## Controls
 
-| Key       | Action     |
-|-----------|------------|
-| WASD      | Move       |
-| Mouse     | Aim        |
-| Left Click| Shoot      |
-| R         | Reload     |
-| ESC       | Pause      |
+### Single Player / Player 1
+
+| Key        | Action              |
+|------------|---------------------|
+| WASD       | Move                |
+| Mouse      | Aim                 |
+| Left Click | Shoot               |
+| M          | Reload              |
+| ESC        | Pause               |
+
+### Player 2 (Co-op Mode Only)
+
+| Key         | Action                           |
+|-------------|----------------------------------|
+| Arrow Keys  | Move                             |
+| Right Shift | Shoot (auto-aims at nearest enemy)|
+| Right Ctrl  | Reload                           |
+
+> In Co-op mode, Player 2 automatically aims at the nearest enemy. Just focus on dodging and shooting!
 
 ## Game Modes
 
-| Mode     | Description                                                |
-|----------|------------------------------------------------------------|
-| NORMAL   | Standard difficulty — the intended experience              |
-| HARD     | 2x enemy HP, 1.4x enemy speed — for veterans               |
-| ENDLESS  | No level cap, difficulty keeps scaling — how far can you go?|
-| SPEEDRUN | 30 seconds per level — beat the clock or lose!             |
+| Mode     | Description                                                                      |
+|----------|----------------------------------------------------------------------------------|
+| NORMAL   | Standard difficulty — the intended experience                                     |
+| HARD     | 2x enemy HP, 1.4x enemy speed — for veterans                                     |
+| ENDLESS  | No level cap, difficulty keeps scaling — how far can you go?                      |
+| SPEEDRUN | 30 seconds per level — beat the clock or lose!                                    |
+| COOP     | 2-player co-op on the same keyboard! Game over only when both players are down   |
+
+### Co-op Details
+
+- Player 1 (green): WASD + mouse aim + left click to shoot + M to reload
+- Player 2 (blue): Arrow keys + auto-aim + Right Shift to shoot + Right Ctrl to reload
+- Enemies and bosses target the **nearest alive player**
+- If one player dies, the other can keep fighting
+- Game over only when **both** players are down
+- Dead Player 2 **revives with half HP** at the start of each new level
+- Boss kill rewards apply to **both** players
+- Ammo pickups go to the alive player who needs them most
 
 ## Account System
 
@@ -104,6 +129,8 @@ A standalone Tkinter application that communicates with the game via `cheat_cfg.
 
 Full mode requires login credentials (contact the developer).
 
+> In Co-op mode, cheat modifications apply to **both** players simultaneously.
+
 ### Usage
 
 1. Start the game first
@@ -114,7 +141,7 @@ Full mode requires login credentials (contact the developer).
 
 ```
 .
-├── shooter.py          # Main game (single-file, ~1200 lines)
+├── shooter.py          # Main game (single-file, ~1300 lines)
 ├── cheat_tool.py       # Companion cheat tool (Tkinter GUI)
 ├── users.json          # User account data (auto-generated)
 ├── cheat_cfg.json      # Real-time config bridge (auto-generated)
@@ -134,6 +161,7 @@ Full mode requires login credentials (contact the developer).
 - **Communication**: Game <-> Cheat Tool via polling `cheat_cfg.json` with version counter
 - **Collision**: Circle-circle distance checks
 - **Boss AI**: 3 attack patterns — spread shot, radial burst, rotating cross
+- **Co-op**: Nearest-player targeting for enemies/bosses; auto-aim for Player 2; shared kill counter; revive-on-level-up
 - **EXE Packaging**: PyInstaller `--onefile` with `sys.frozen` path detection
 
 ## Building EXE from Source

@@ -27,6 +27,8 @@ C_BG       = (18,  18,  28)
 C_GRID     = (28,  28,  42)
 C_PLAYER   = (70, 200, 120)
 C_PLAYER_G = (160, 220, 180)
+C_PLAYER2   = (70, 130, 220)
+C_PLAYER2_G = (130, 170, 240)
 C_BULLET   = (255, 240,  70)
 C_E1       = (210,  55,  55)
 C_E2       = (220, 115,  25)
@@ -63,12 +65,13 @@ g_bullet_spd = BULLET_SPD
 
 # === Game Modes ===
 # "normal" "hard" "endless" "speedrun"
-GAME_MODES = ["NORMAL", "HARD", "ENDLESS", "SPEEDRUN"]
+GAME_MODES = ["NORMAL", "HARD", "ENDLESS", "SPEEDRUN", "COOP"]
 MODE_DESC   = {
     "NORMAL":   "Standard difficulty",
     "HARD":     "2x enemy HP & speed",
     "ENDLESS":  "No level limit, ever harder",
     "SPEEDRUN": "30s per level or lose!",
+    "COOP":     "2P co-op! P1:WASD+mouse P2:Arrows+RShift",
 }
 SPEEDRUN_TIME = 30000  # ms per level
 
@@ -480,11 +483,14 @@ class Boss:
 
 # === Player ===
 class Player:
-    def __init__(s, mag_size, reserve):
+    def __init__(s, mag_size, reserve, pnum=1):
         s.x=W//2; s.y=H//2; s.hp=8; s.hp_max=8
         s.angle=0; s.alive=True; s.inv_timer=0
         s.shoot_timer=0; s.mag_size=mag_size; s.ammo=mag_size
         s.reserve=reserve; s.reloading=False; s.reload_start=0
+        s.pnum = pnum
+        s.color = C_PLAYER if pnum==1 else C_PLAYER2
+        s.glow_color = C_PLAYER_G if pnum==1 else C_PLAYER2_G
     def set_mag(s, ms):
         s.mag_size = ms
     def start_reload(s, now, snd=None):
@@ -545,11 +551,13 @@ class Player:
         if s.hp <= 0: s.alive = False
     def draw(s, surf, g_rld):
         blink = s.inv_timer>0 and (s.inv_timer%8<4)
-        c = C_TEXT_D if blink else C_PLAYER
+        c = C_TEXT_D if blink else s.color
         pygame.draw.circle(surf,c,(int(s.x),int(s.y)),PLAYER_R)
         gx=int(s.x+math.cos(s.angle)*(PLAYER_R+4))
         gy=int(s.y+math.sin(s.angle)*(PLAYER_R+4))
-        pygame.draw.line(surf,C_PLAYER_G,(int(s.x),int(s.y)),(gx,gy),2)
+        pygame.draw.line(surf,s.glow_color,(int(s.x),int(s.y)),(gx,gy),2)
+        if s.pnum == 2:
+            pygame.draw.circle(surf, s.color, (int(s.x), int(s.y)), PLAYER_R, 2)
         if s.reloading:
             prog=min(1.0,(pygame.time.get_ticks()-s.reload_start)/g_rld)
             bw=30; bx=int(s.x)-15; by=int(s.y)+PLAYER_R+6
@@ -577,13 +585,16 @@ def make_level(lv_idx):
     return idx,0,mg,rs,covs,sp,t
 
 # === Drawing ===
-def draw_hud(surf, font, sfont, bigfont, player, lv_num, kills, kt, fps, boss, mode="NORMAL", spd_timer=0):
+def draw_hud(surf, font, sfont, bigfont, player, lv_num, kills, kt, fps, boss, mode="NORMAL", spd_timer=0, player2=None):
     if fps > 0:
         fc = (80,220,80) if fps>=55 else ((255,215,50) if fps>=30 else (255,90,90))
         ft = sfont.render("FPS "+str(int(fps)), True, fc)
         surf.blit(ft, (W-ft.get_width()-8, 36))
     # 模式标签
-    mc = C_ACCENT if mode=="NORMAL" else (C_WARN if mode=="HARD" else ((255,100,255) if mode=="ENDLESS" else (100,255,255)))
+    if mode=="COOP":
+        mc = (100,180,255)
+    else:
+        mc = C_ACCENT if mode=="NORMAL" else (C_WARN if mode=="HARD" else ((255,100,255) if mode=="ENDLESS" else (100,255,255)))
     mt = sfont.render(mode, True, mc)
     surf.blit(mt, (8, 72))
     # 速通倒计时
@@ -593,24 +604,49 @@ def draw_hud(surf, font, sfont, bigfont, player, lv_num, kills, kt, fps, boss, m
         if sec<=5: tc=(255,50,50)
         st = bigfont.render(("%.1f" if sec<=5 else "%.0f")%sec, True, tc)
         surf.blit(st, (W//2-st.get_width()//2, H-65))
+    # P1 血量
     for i in range(player.hp_max):
         c = C_HP_FG if i<player.hp else C_HP_BG
         pygame.draw.circle(surf,c,(24+i*26,20),8)
+    # P1 编号标记
+    p1_tag = sfont.render("P1", True, C_PLAYER)
+    surf.blit(p1_tag, (4, 36))
     t = font.render("LV."+str(lv_num),True,C_ACCENT)
     surf.blit(t,(W-20-t.get_width(),14))
     kt2 = sfont.render(str(kills)+"/"+str(kt),True,C_TEXT)
     surf.blit(kt2,(W//2-kt2.get_width()//2,12))
+    # P1 弹药
     ac = C_WARN if player.ammo==0 else (C_ACCENT if player.ammo<=4 else C_TEXT)
     a = sfont.render(str(player.ammo)+"/"+str(player.mag_size),True,ac)
-    surf.blit(a,(14,38))
+    surf.blit(a,(30,36))
     r = sfont.render("RES "+str(player.reserve),True,C_TEXT_D)
-    surf.blit(r,(14,56))
+    surf.blit(r,(30,52))
     if player.ammo==0 and player.reserve>0 and not player.reloading:
         h=sfont.render("[M] RELOAD",True,C_WARN)
         surf.blit(h,(W//2-h.get_width()//2,36))
     if player.reloading:
-        rl=sfont.render("RELOADING...",True,(80,180,255))
+        rl=sfont.render("P1 RELOADING...",True,(80,180,255))
         surf.blit(rl,(W//2-rl.get_width()//2,36))
+    # P2 信息（COOP模式）
+    if player2 is not None:
+        # P2 血量（右侧）
+        for i in range(player2.hp_max):
+            c = C_HP_FG if i<player2.hp else C_HP_BG
+            pygame.draw.circle(surf, c, (W-24-i*26, 20), 8)
+        p2_tag = sfont.render("P2", True, C_PLAYER2)
+        surf.blit(p2_tag, (W-20-p2_tag.get_width(), 36))
+        # P2 弹药
+        ac2 = C_WARN if player2.ammo==0 else (C_ACCENT if player2.ammo<=4 else C_TEXT)
+        a2 = sfont.render(str(player2.ammo)+"/"+str(player2.mag_size), True, ac2)
+        surf.blit(a2, (W-30-a2.get_width(), 36))
+        r2 = sfont.render("RES "+str(player2.reserve), True, C_TEXT_D)
+        surf.blit(r2, (W-30-r2.get_width(), 52))
+        if player2.reloading:
+            rl2 = sfont.render("P2 RELOADING...", True, (80,180,255))
+            surf.blit(rl2, (W//2-rl2.get_width()//2, 50))
+        elif player2.ammo==0 and player2.reserve>0:
+            h2=sfont.render("P2 [RCTRL] RELOAD",True,C_WARN)
+            surf.blit(h2,(W//2-h2.get_width()//2,50))
     if boss and boss.alive:
         wt = font.render("!! BOSS !!", True, C_WARN)
         surf.blit(wt, (W//2-wt.get_width()//2, 22))
@@ -941,6 +977,7 @@ def game(start_level=0, mode="NORMAL"):
         g_mode_hp_mul = 1.0; g_mode_spd_mul = 1.0
     else:
         g_mode_hp_mul = 1.0; g_mode_spd_mul = 1.0
+    is_coop = (mode == "COOP")
     pygame.init()
     pygame.mixer.init(frequency=SR, size=-16, channels=1, buffer=512)
     pygame.mixer.set_num_channels(8)
@@ -949,7 +986,7 @@ def game(start_level=0, mode="NORMAL"):
     screen = pygame.display.set_mode((W, H))
     surf = pygame.Surface((W, H))
     TextInput.set_scale(screen, surf)
-    pygame.display.set_caption("TopDown Shooter v5")
+    pygame.display.set_caption("TopDown Shooter v6")
     clock = pygame.time.Clock()
     def flip_display():
         screen.blit(pygame.transform.scale(surf, screen.get_size()), (0,0))
@@ -963,7 +1000,7 @@ def game(start_level=0, mode="NORMAL"):
     cheat_kill_all = [False]
     cheat_restore  = [False]
     cheat_teleport = [False]
-    def apply_cheat(p):
+    def apply_cheat(p, p2=None):
         nonlocal fc
         fc[0]+=1
         if fc[0]%6!=0: return
@@ -975,6 +1012,9 @@ def game(start_level=0, mode="NORMAL"):
         cheat_last_v=v
         p.invincible=bool(cfg.get("invincible",False))
         p.inf_ammo=bool(cfg.get("inf_ammo",False))
+        if p2:
+            p2.invincible=bool(cfg.get("invincible",False))
+            p2.inf_ammo=bool(cfg.get("inf_ammo",False))
         g_shoot_cd=max(0,int(cfg.get("shoot_cd",160)))
         g_bullet_r=max(1,int(cfg.get("bullet_r",4)))
         g_bullet_dmg=max(1,int(cfg.get("bullet_dmg",1)))
@@ -987,11 +1027,19 @@ def game(start_level=0, mode="NORMAL"):
             p.hp=min(nh,nhm); p.hp_max=nhm
             if nm!=p.mag_size: p.set_mag(nm); p.ammo=min(p.ammo,nm)
             if p.inf_ammo: p.ammo=p.mag_size
+            if p2:
+                p2.hp=min(nh,nhm); p2.hp_max=nhm
+                if nm!=p2.mag_size: p2.set_mag(nm); p2.ammo=min(p2.ammo,nm)
+                if p2.inf_ammo: p2.ammo=p2.mag_size
             cheat_teleport[0] = bool(cfg.get("teleport_center",False))
             cheat_kill_all[0] = bool(cfg.get("kill_all",False))
             cheat_restore[0]  = bool(cfg.get("full_restore",False))
-            if cheat_restore[0]: p.hp=p.hp_max; p.ammo=p.mag_size; p.reserve=p.mag_size*5
-            if cheat_teleport[0]: p.x=W//2; p.y=H//2
+            if cheat_restore[0]:
+                p.hp=p.hp_max; p.ammo=p.mag_size; p.reserve=p.mag_size*5
+                if p2: p2.hp=p2.hp_max; p2.ammo=p2.mag_size; p2.reserve=p2.mag_size*5
+            if cheat_teleport[0]:
+                p.x=W//2; p.y=H//2
+                if p2: p2.x=W//2+40; p2.y=H//2
             write_cheat(cfg)
     def make_level_endless(lv_idx):
         """无尽模式：超过10关后动态生成越来越难的关卡"""
@@ -1016,10 +1064,16 @@ def game(start_level=0, mode="NORMAL"):
             idx,_,mg,rs,cv,sp,kt = make_level_endless(start_level)
         else:
             idx,_,mg,rs,cv,sp,kt = make_level(start_level)
-        p=Player(mg,rs)
-        return p,[],[],[],0,idx,0,kt,sp,cv,pygame.time.get_ticks(),None,[]
-    (player,bullets,enemies,particles,score,lv_idx,kills,kt,spd,covers,last_spawn,boss,boss_bullets)=reset_all()
-    game_over=False; paused=False; pause_sel=0; shooting=False
+        p1=Player(mg, rs, pnum=1)
+        p1.x = W//2 - 60 if is_coop else W//2
+        p1.y = H//2
+        p2 = None
+        if is_coop:
+            p2 = Player(mg, rs, pnum=2)
+            p2.x = W//2 + 60; p2.y = H//2
+        return p1,p2,[],[],[],0,idx,0,kt,sp,cv,pygame.time.get_ticks(),None,[]
+    (player,player2,bullets,enemies,particles,score,lv_idx,kills,kt,spd,covers,last_spawn,boss,boss_bullets)=reset_all()
+    game_over=False; paused=False; pause_sel=0; shooting=False; p2_shooting=False
     trans_t=0; trans_up=False; boss_warn_t=0; boss_kill_t=0
     # 速通模式计时
     level_start_t = pygame.time.get_ticks()
@@ -1027,8 +1081,30 @@ def game(start_level=0, mode="NORMAL"):
     if start_level in BOSS_LEVELS:
         boss=Boss(start_level,covers); boss_warn_t=120
         safe_play(snd.get("boss_warn"))
-    held={"up":False,"down":False,"left":False,"right":False}
-    MOVE_KEYS={pygame.K_w:"up",pygame.K_UP:"up",pygame.K_s:"down",pygame.K_DOWN:"down",pygame.K_a:"left",pygame.K_LEFT:"left",pygame.K_d:"right",pygame.K_RIGHT:"right"}
+    # 按键映射：COOP模式分两套，普通模式合并
+    if is_coop:
+        P1_KEYS = {pygame.K_w:"up", pygame.K_s:"down", pygame.K_a:"left", pygame.K_d:"right"}
+        P2_KEYS = {pygame.K_UP:"up", pygame.K_DOWN:"down", pygame.K_LEFT:"left", pygame.K_RIGHT:"right"}
+        held1={"up":False,"down":False,"left":False,"right":False}
+        held2={"up":False,"down":False,"left":False,"right":False}
+    else:
+        MOVE_KEYS={pygame.K_w:"up",pygame.K_UP:"up",pygame.K_s:"down",pygame.K_DOWN:"down",pygame.K_a:"left",pygame.K_LEFT:"left",pygame.K_d:"right",pygame.K_RIGHT:"right"}
+        held1={"up":False,"down":False,"left":False,"right":False}
+
+    def get_nearest_alive_player(x, y):
+        """获取离指定位置最近的存活玩家坐标"""
+        if is_coop and player2 and player2.alive:
+            d1 = dist((x,y),(player.x,player.y)) if player.alive else 99999
+            d2 = dist((x,y),(player2.x,player2.y))
+            if not player.alive: return player2.x, player2.y
+            return (player.x, player.y) if d1 <= d2 else (player2.x, player2.y)
+        return player.x, player.y
+
+    def any_player_alive():
+        if is_coop and player2:
+            return player.alive or player2.alive
+        return player.alive
+
     def try_spawn():
         nonlocal last_spawn,spd
         now=pygame.time.get_ticks()
@@ -1047,7 +1123,7 @@ def game(start_level=0, mode="NORMAL"):
             if ev.type==pygame.QUIT: pygame.quit(); sys.exit()
             elif ev.type==pygame.KEYDOWN:
                 if game_over:
-                    if ev.key==pygame.K_r: (player,bullets,enemies,particles,score,lv_idx,kills,kt,spd,covers,last_spawn,boss,boss_bullets)=reset_all(); game_over=False; paused=False; trans_t=0; trans_up=False; boss_warn_t=0; boss_kill_t=0
+                    if ev.key==pygame.K_r: (player,player2,bullets,enemies,particles,score,lv_idx,kills,kt,spd,covers,last_spawn,boss,boss_bullets)=reset_all(); game_over=False; paused=False; trans_t=0; trans_up=False; boss_warn_t=0; boss_kill_t=0; p2_shooting=False
                     elif ev.key==pygame.K_q: pygame.quit(); sys.exit()
                     continue
                 if ev.key==pygame.K_ESCAPE: paused=not paused; pause_sel=0; continue
@@ -1056,14 +1132,26 @@ def game(start_level=0, mode="NORMAL"):
                     elif ev.key in (pygame.K_s,pygame.K_DOWN): pause_sel=(pause_sel+1)%3
                     elif ev.key in (pygame.K_RETURN,pygame.K_SPACE,pygame.K_KP_ENTER):
                         if pause_sel==0: paused=False
-                        elif pause_sel==1: (player,bullets,enemies,particles,score,lv_idx,kills,kt,spd,covers,last_spawn,boss,boss_bullets)=reset_all(); paused=False; game_over=False; trans_t=0; trans_up=False; boss_warn_t=0; boss_kill_t=0
+                        elif pause_sel==1: (player,player2,bullets,enemies,particles,score,lv_idx,kills,kt,spd,covers,last_spawn,boss,boss_bullets)=reset_all(); paused=False; game_over=False; trans_t=0; trans_up=False; boss_warn_t=0; boss_kill_t=0; p2_shooting=False
                         elif pause_sel==2: pygame.quit(); sys.exit()
                     continue
-                if ev.key in MOVE_KEYS: held[MOVE_KEYS[ev.key]]=True
-                elif ev.key==pygame.K_m: player.start_reload(now,snd)
-                elif ev.key==pygame.K_r: (player,bullets,enemies,particles,score,lv_idx,kills,kt,spd,covers,last_spawn,boss,boss_bullets)=reset_all(); game_over=False; trans_t=0; trans_up=False; boss_warn_t=0; boss_kill_t=0
+                if is_coop:
+                    if ev.key in P1_KEYS: held1[P1_KEYS[ev.key]]=True
+                    if ev.key in P2_KEYS: held2[P2_KEYS[ev.key]]=True
+                    if ev.key==pygame.K_m: player.start_reload(now,snd)
+                    if ev.key==pygame.K_RCTRL: 
+                        if player2: player2.start_reload(now,snd)
+                    if ev.key==pygame.K_RSHIFT: p2_shooting=True
+                else:
+                    if ev.key in MOVE_KEYS: held1[MOVE_KEYS[ev.key]]=True
+                if ev.key==pygame.K_r and not is_coop: (player,player2,bullets,enemies,particles,score,lv_idx,kills,kt,spd,covers,last_spawn,boss,boss_bullets)=reset_all(); game_over=False; trans_t=0; trans_up=False; boss_warn_t=0; boss_kill_t=0
             elif ev.type==pygame.KEYUP:
-                if ev.key in MOVE_KEYS: held[MOVE_KEYS[ev.key]]=False
+                if is_coop:
+                    if ev.key in P1_KEYS: held1[P1_KEYS[ev.key]]=False
+                    if ev.key in P2_KEYS: held2[P2_KEYS[ev.key]]=False
+                    if ev.key==pygame.K_RSHIFT: p2_shooting=False
+                else:
+                    if ev.key in MOVE_KEYS: held1[MOVE_KEYS[ev.key]]=False
             elif ev.type==pygame.MOUSEBUTTONDOWN and ev.button==1:
                 if not paused and not game_over: shooting=True
             elif ev.type==pygame.MOUSEBUTTONUP and ev.button==1: shooting=False
@@ -1072,7 +1160,7 @@ def game(start_level=0, mode="NORMAL"):
             elapsed = now - level_start_t
             spd_timer_remain = max(0, SPEEDRUN_TIME - elapsed)
             if spd_timer_remain <= 0:
-                game_over = True; snd["game_over"].play()
+                game_over = True; safe_play(snd.get("game_over"))
         if paused and not game_over:
             surf.fill(C_BG); draw_grid(surf)
             for cv in covers: cv.draw(surf)
@@ -1082,7 +1170,8 @@ def game(start_level=0, mode="NORMAL"):
             if boss and boss.alive: boss.draw(surf)
             for b in bullets: b.draw(surf,g_bullet_r)
             player.draw(surf,g_reload_ms)
-            draw_hud(surf,font,sfont,bigfont,player,lv_idx+1,kills,kt,cur_fps,boss,mode,spd_timer_remain)
+            if player2: player2.draw(surf,g_reload_ms)
+            draw_hud(surf,font,sfont,bigfont,player,lv_idx+1,kills,kt,cur_fps,boss,mode,spd_timer_remain,player2)
             draw_pause(surf,font,sfont,pause_sel)
             flip_display(); clock.tick(FPS); continue
         if game_over:
@@ -1092,14 +1181,16 @@ def game(start_level=0, mode="NORMAL"):
             for e in enemies: e.draw(surf)
             if boss and boss.alive: boss.draw(surf)
             player.draw(surf,g_reload_ms)
-            draw_hud(surf,font,sfont,bigfont,player,lv_idx+1,kills,kt,cur_fps,boss,mode,0)
+            if player2: player2.draw(surf,g_reload_ms)
+            draw_hud(surf,font,sfont,bigfont,player,lv_idx+1,kills,kt,cur_fps,boss,mode,0,player2)
             draw_gameover(surf,bigfont,font,sfont,score,lv_idx+1)
             flip_display(); clock.tick(FPS); continue
         if boss_warn_t>0:
             boss_warn_t-=1
             surf.fill(C_BG); draw_grid(surf)
             player.draw(surf,g_reload_ms)
-            draw_hud(surf,font,sfont,bigfont,player,lv_idx+1,kills,kt,cur_fps,boss,mode,spd_timer_remain)
+            if player2: player2.draw(surf,g_reload_ms)
+            draw_hud(surf,font,sfont,bigfont,player,lv_idx+1,kills,kt,cur_fps,boss,mode,spd_timer_remain,player2)
             draw_boss_warn(surf,bigfont,font,boss_warn_t)
             flip_display(); clock.tick(FPS); continue
         if boss_kill_t>0:
@@ -1108,26 +1199,48 @@ def game(start_level=0, mode="NORMAL"):
             for cv in covers: cv.draw(surf)
             for p in particles: p.draw(surf)
             player.draw(surf,g_reload_ms)
-            draw_hud(surf,font,sfont,bigfont,player,lv_idx+1,kills,kt,cur_fps,boss,mode,spd_timer_remain)
+            if player2: player2.draw(surf,g_reload_ms)
+            draw_hud(surf,font,sfont,bigfont,player,lv_idx+1,kills,kt,cur_fps,boss,mode,spd_timer_remain,player2)
             draw_boss_kill(surf,bigfont,font,boss_kill_t)
             if boss_kill_t==0: boss=None
             flip_display(); clock.tick(FPS); continue
-        apply_cheat(player)
+        apply_cheat(player, player2)
         # cheat: kill all enemies
         if cheat_kill_all[0]:
             cheat_kill_all[0] = False
             for e in enemies: e.alive=False; kills+=1
-        player.update(held,mx,my,now,covers,snd)
+        # --- 更新玩家 ---
+        if player.alive:
+            player.update(held1,mx,my,now,covers,snd)
+        # P2 自动瞄准最近的敌人
+        if player2 and player2.alive:
+            aim_x, aim_y = player2.x + 100, player2.y  # 默认朝右
+            alive_enemies = [e for e in enemies if e.alive]
+            if alive_enemies:
+                nearest_e = min(alive_enemies, key=lambda e: dist((player2.x,player2.y),(e.x,e.y)))
+                aim_x, aim_y = nearest_e.x, nearest_e.y
+            elif boss and boss.alive and not boss.entering:
+                aim_x, aim_y = boss.x, boss.y
+            player2.update(held2, aim_x, aim_y, now, covers, snd)
         multi=lv_idx>=1
-        if shooting: player.try_shoot(now,bullets,multi,snd,g_shoot_cd,g_bullet_r,g_bullet_dmg)
-        if held.get("space"): player.try_shoot(now,bullets,multi,snd,g_shoot_cd,g_bullet_r,g_bullet_dmg)
+        # P1 射击
+        if player.alive and shooting: player.try_shoot(now,bullets,multi,snd,g_shoot_cd,g_bullet_r,g_bullet_dmg)
+        # P2 射击 (Right Shift)
+        if player2 and player2.alive and p2_shooting: player2.try_shoot(now,bullets,multi,snd,g_shoot_cd,g_bullet_r,g_bullet_dmg)
         for b in bullets: b.update(covers,g_bullet_r)
         bullets=[b for b in bullets if b.alive]
         for bb in boss_bullets: bb.update(covers)
         boss_bullets=[bb for bb in boss_bullets if bb.alive]
         if not (boss and boss.alive): try_spawn()
-        for e in enemies: e.update(player.x,player.y,covers)
-        if boss and boss.alive: boss.update(player.x,player.y,covers,now,boss_bullets,snd)
+        # 敌人追踪最近的存活玩家
+        for e in enemies:
+            tx, ty = get_nearest_alive_player(e.x, e.y)
+            e.update(tx, ty, covers)
+        # Boss 追踪最近的存活玩家
+        if boss and boss.alive:
+            btx, bty = get_nearest_alive_player(boss.x, boss.y)
+            boss.update(btx, bty, covers, now, boss_bullets, snd)
+        # --- 子弹碰撞检测 ---
         for b in bullets:
             if not b.alive: continue
             for e in enemies:
@@ -1140,7 +1253,11 @@ def game(start_level=0, mode="NORMAL"):
                         if snd: safe_play(snd.get("explode"))
                         score+=(10 if e.r==12 else 15 if e.r==9 else 30); kills+=1
                         for _ in range(10): particles.append(Particle(e.x,e.y,e.color,spd=3))
-                        if random.random()<0.35: player.reserve+=random.randint(3,8); safe_play(snd.get("pickup"))
+                        # 补给给存活玩家
+                        if random.random()<0.35:
+                            target_p = player if player.alive else player2
+                            if target_p: target_p.reserve+=random.randint(3,8)
+                            safe_play(snd.get("pickup"))
                     break
         for b in bullets:
             if not b.alive: continue
@@ -1155,19 +1272,29 @@ def game(start_level=0, mode="NORMAL"):
                         for _ in range(30):
                             particles.append(Particle(boss.x,boss.y,C_BOSS,spd=4,life=30))
                             particles.append(Particle(boss.x,boss.y,C_BOSS_2,spd=3,life=25))
-                        player.reserve+=50; player.hp=min(player.hp+2,player.hp_max); boss_kill_t=150
+                        # Boss击杀奖励给所有存活玩家
+                        if player.alive: player.reserve+=50; player.hp=min(player.hp+2,player.hp_max)
+                        if player2 and player2.alive: player2.reserve+=50; player2.hp=min(player2.hp+2,player2.hp_max)
+                        boss_kill_t=150
                     break
         bullets=[b for b in bullets if b.alive]
         enemies=[e for e in enemies if e.alive]
+        # --- Boss子弹碰撞 ---
         for bb in boss_bullets:
             if not bb.alive: continue
-            if dist((bb.x,bb.y),(player.x,player.y)) < bb.r+PLAYER_R:
+            if player.alive and dist((bb.x,bb.y),(player.x,player.y)) < bb.r+PLAYER_R:
                 player.take_damage(snd); bb.alive=False
-                if not player.alive and not game_over: game_over=True; safe_play(snd.get("game_over"))
+            if player2 and player2.alive and dist((bb.x,bb.y),(player2.x,player2.y)) < bb.r+PLAYER_R:
+                player2.take_damage(snd); bb.alive=False
+        # --- 敌人碰撞 ---
         for e in enemies:
-            if dist((e.x,e.y),(player.x,player.y)) < e.r+PLAYER_R:
+            if player.alive and dist((e.x,e.y),(player.x,player.y)) < e.r+PLAYER_R:
                 player.take_damage(snd)
-                if not player.alive and not game_over: game_over=True; safe_play(snd.get("game_over"))
+            if player2 and player2.alive and dist((e.x,e.y),(player2.x,player2.y)) < e.r+PLAYER_R:
+                player2.take_damage(snd)
+        # --- 判断游戏结束（两人都死才算） ---
+        if not any_player_alive() and not game_over:
+            game_over=True; safe_play(snd.get("game_over"))
         for p in particles: p.update()
         particles=[p for p in particles if p.life>0]
         if kills>=kt and trans_t==0 and boss_kill_t==0:
@@ -1176,18 +1303,28 @@ def game(start_level=0, mode="NORMAL"):
             # 无尽模式不限关卡数
             if mode=="ENDLESS":
                 nm = LEVELS[min(nxt,len(LEVELS)-1)][3]
-                if nm>player.mag_size: player.set_mag(nm); player.ammo=min(player.ammo,nm); trans_up=True; safe_play(snd.get("level_up"))
+                if player.alive and nm>player.mag_size: player.set_mag(nm); player.ammo=min(player.ammo,nm); trans_up=True; safe_play(snd.get("level_up"))
+                if player2 and player2.alive and nm>player2.mag_size: player2.set_mag(nm); player2.ammo=min(player2.ammo,nm)
             elif nxt<len(LEVELS):
                 nm=LEVELS[nxt][3]
-                if nm>player.mag_size: player.set_mag(nm); player.ammo=min(player.ammo,nm); trans_up=True; safe_play(snd.get("level_up"))
+                if player.alive and nm>player.mag_size: player.set_mag(nm); player.ammo=min(player.ammo,nm); trans_up=True; safe_play(snd.get("level_up"))
+                if player2 and player2.alive and nm>player2.mag_size: player2.set_mag(nm); player2.ammo=min(player2.ammo,nm)
         if trans_t and now-trans_t>1800:
             lv_idx+=1
             if mode=="ENDLESS":
                 _,_,ms,rs,ncv,nspd,nkt = make_level_endless(lv_idx)
             else:
                 _,_,ms,rs,ncv,nspd,nkt = make_level(lv_idx)
-            player.set_mag(ms); player.reserve=rs
+            if player.alive: player.set_mag(ms); player.reserve=rs
             if player.ammo>ms: player.ammo=ms
+            if player2:
+                if player2.alive: player2.set_mag(ms); player2.reserve=rs
+                if player2.ammo>ms: player2.ammo=ms
+                # P2 死了也复活，给基础弹药
+                if not player2.alive:
+                    player2.alive=True; player2.hp=player2.hp_max//2; player2.inv_timer=120
+                    player2.ammo=ms; player2.reserve=rs; player2.reloading=False
+                    player2.set_mag(ms)
             covers=ncv; spd=nspd; kt=nkt; kills=0
             enemies.clear(); bullets.clear(); boss_bullets.clear(); trans_t=0; trans_up=False
             level_start_t = now; spd_timer_remain = SPEEDRUN_TIME  # 速通模式重置计时
@@ -1204,7 +1341,8 @@ def game(start_level=0, mode="NORMAL"):
         if boss and boss.alive: boss.draw(surf)
         for b in bullets: b.draw(surf,g_bullet_r)
         player.draw(surf,g_reload_ms)
-        draw_hud(surf,font,sfont,bigfont,player,lv_idx+1,kills,kt,cur_fps,boss,mode,spd_timer_remain)
+        if player2: player2.draw(surf,g_reload_ms)
+        draw_hud(surf,font,sfont,bigfont,player,lv_idx+1,kills,kt,cur_fps,boss,mode,spd_timer_remain,player2)
         if trans_t: draw_transition(surf,bigfont,font,lv_idx+2,trans_up)
         flip_display()
         clock.tick(FPS)
@@ -1215,7 +1353,7 @@ if __name__=="__main__":
     _scr = pygame.display.set_mode((W, H))
     _sf  = pygame.Surface((W, H))
     TextInput.set_scale(_scr, _sf)
-    pygame.display.set_caption("TopDown Shooter v5")
+    pygame.display.set_caption("TopDown Shooter v6")
     def _mkf(size, bold=False):
         try: return pygame.font.SysFont("consolas", size, bold=bold)
         except: return pygame.font.Font(None, size+(4 if bold else 0))
